@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+.envrc
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
+*.secret
+secrets/
+.local/
+
+# Azure / CLI local state
+.azure/
+
+# Editors / OS
+.vscode/
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Runtime artifacts
+logs/
+*.log

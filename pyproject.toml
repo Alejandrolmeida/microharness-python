@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "microharness-python"
+version = "0.1.0"
+description = "Demo mínima de Microsoft Agent Framework con harness Python, FastAPI y AG-UI."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+  { name = "Alejandro Almeida" }
+]
+dependencies = [
+  "agent-framework-ag-ui",
+  "agent-framework-openai",
+  "azure-identity>=1.20.0",
+  "fastapi>=0.115.0",
+  "httpx>=0.28.0",
+  "pydantic>=2.10.0",
+  "python-dotenv>=1.0.1",
+  "uvicorn[standard]>=0.34.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "ruff>=0.8.0",
+]
+
+[project.scripts]
+microharness-server = "microharness.server:main"
+microharness-client = "microharness.client:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/microharness"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
