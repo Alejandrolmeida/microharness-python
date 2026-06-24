@@ -11,7 +11,7 @@ import httpx
 
 
 def main() -> int:
-    url = os.environ.get("AGUI_SERVER_URL", "http://127.0.0.1:8888/agent")
+    url = os.environ.get("AGUI_SERVER_URL", "http://127.0.0.1:8000/agent")
     prompt = " ".join(sys.argv[1:]) or "Explica el agent loop en una frase."
     payload = {"messages": [{"role": "user", "content": prompt}]}
 

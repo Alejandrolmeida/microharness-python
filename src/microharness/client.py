@@ -14,7 +14,7 @@ async def run_client() -> None:
     """Run an interactive streaming terminal client."""
 
     load_dotenv()
-    server_url = os.environ.get("AGUI_SERVER_URL", "http://127.0.0.1:8888/agent")
+    server_url = os.environ.get("AGUI_SERVER_URL", "http://127.0.0.1:8000/agent")
     print(f"Conectando a AG-UI en: {server_url}\n")
 
     chat_client = AGUIChatClient(server_url=server_url)

@@ -1,6 +1,6 @@
 # Demo flow
 
-Duración sugerida: 8–10 minutos.
+Duración sugerida: 5 minutos.
 
 ## 1. Problema
 
@@ -28,14 +28,12 @@ flowchart LR
 
 ## 3. Narrativa técnica
 
-1. Abrir `http://127.0.0.1:8888/ui/`.
+1. Abrir `http://127.0.0.1:8000/ui/`.
 2. Preguntar: “Explica el agent loop y usa una herramienta”.
 3. Enseñar que el streaming llega como eventos AG-UI.
-4. Preguntar: “Recuerda que esta sesión es para una charla pública”.
-5. Preguntar: “Lee el contexto de la sesión live-demo”.
-6. Explicar que esta memoria es solo de proceso y que el siguiente paso sería persistencia.
-7. Preguntar: “Propón cómo extender esto a MCP y Foundry”.
-8. Activar approvals si hay tiempo con `MICROHARNESS_REQUIRE_CONFIRMATION=true`.
+4. Ejecutar `python scripts/run_demo_client.py` para mostrar la ruta estable `/api/chat`.
+5. Abrir `working/output/demo_summary.md` y `working/output/session_state.json`.
+6. Explicar que esta memoria es local y que el siguiente paso sería persistencia real.
 
 ## 4. Plan B sin internet
 
@@ -45,7 +43,8 @@ Si el modelo o Azure no responden:
 - abrir la webapp,
 - enseñar los tools simulados,
 - explicar el contrato AG-UI con el diagrama,
-- ejecutar solo `/healthz` si la configuración está cargada.
+- mostrar `working/fallback/expected_response.md`,
+- ejecutar el cliente, que activa fallback local si el servidor no responde.
 
 ## 5. Mensaje final
 

@@ -20,10 +20,20 @@ venv/
 .env
 .env.*
 !.env.example
+.envrc
 *.local
 *.secret
 secrets/
 .local/
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+token.json
+oauth*.json
+*credentials*.json
+*token*.json
 
 # Azure / CLI local state
 .azure/
@@ -37,3 +47,5 @@ Thumbs.db
 # Runtime artifacts
 logs/
 *.log
+working/output/*
+!working/output/.gitkeep

@@ -80,7 +80,7 @@ def load_settings() -> Settings:
             "Para la configuración Azurebrains usa AZURE_OPENAI_BASE_URL con la URL /openai/v1."
         )
 
-    port = int(os.getenv("MICROHARNESS_PORT", "8888"))
+    port = int(os.getenv("MICROHARNESS_PORT", "8000"))
 
     return Settings(
         model=model,
