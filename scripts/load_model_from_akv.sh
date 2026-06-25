@@ -1,5 +1,19 @@
 #!/usr/bin/env bash
-set -euo pipefail
+
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  MICROHARNESS_AKV_SOURCED=1
+else
+  MICROHARNESS_AKV_SOURCED=0
+  set -euo pipefail
+fi
+
+finish() {
+  local status="$1"
+  if [[ "$MICROHARNESS_AKV_SOURCED" == "1" ]]; then
+    return "$status"
+  fi
+  exit "$status"
+}
 
 # Load the same Azurebrains custom model configuration used by local Copilot setup.
 # Only local config and Key Vault secret names are read here; secret values are exported
@@ -35,7 +49,8 @@ El Key Vault debe contener estos secretos o los nombres que indiques con *_SECRE
 - azure-openai-api-key
 - azure-openai-max-completion-tokens
 EOF
-  exit 2
+  finish 2
+  return $?
 fi
 
 get_secret() {
@@ -53,11 +68,45 @@ get_secret() {
     --query value -o tsv
 }
 
-export AZURE_OPENAI_BASE_URL="${AZURE_OPENAI_BASE_URL:-$(get_secret "$AZURE_OPENAI_BASE_URL_SECRET_NAME")}" 
-export AZURE_OPENAI_MODEL="${AZURE_OPENAI_MODEL:-$(get_secret "$AZURE_OPENAI_MODEL_SECRET_NAME")}" 
+load_secret_env() {
+  local env_name="$1"
+  local secret_name="$2"
+  local secret_value=""
+
+  if [[ -n "${!env_name:-}" ]]; then
+    export "$env_name=${!env_name}"
+    return 0
+  fi
+
+  if ! secret_value="$(get_secret "$secret_name")"; then
+    echo "ERROR: no se pudo leer el secreto '$secret_name' desde Key Vault '$KEYVAULT_NAME'." >&2
+    return 1
+  fi
+
+  export "$env_name=$secret_value"
+}
+
+if ! load_secret_env AZURE_OPENAI_BASE_URL "$AZURE_OPENAI_BASE_URL_SECRET_NAME"; then
+  finish 1
+  return $?
+fi
+
+if ! load_secret_env AZURE_OPENAI_MODEL "$AZURE_OPENAI_MODEL_SECRET_NAME"; then
+  finish 1
+  return $?
+fi
+
 export AZURE_OPENAI_CHAT_COMPLETION_MODEL="${AZURE_OPENAI_CHAT_COMPLETION_MODEL:-$AZURE_OPENAI_MODEL}"
-export AZURE_OPENAI_API_KEY="${AZURE_OPENAI_API_KEY:-$(get_secret "$AZURE_OPENAI_API_KEY_SECRET_NAME")}" 
-export AZURE_OPENAI_MAX_COMPLETION_TOKENS="${AZURE_OPENAI_MAX_COMPLETION_TOKENS:-$(get_secret "$AZURE_OPENAI_MAX_COMPLETION_TOKENS_SECRET_NAME")}" 
+
+if ! load_secret_env AZURE_OPENAI_API_KEY "$AZURE_OPENAI_API_KEY_SECRET_NAME"; then
+  finish 1
+  return $?
+fi
+
+if ! load_secret_env AZURE_OPENAI_MAX_COMPLETION_TOKENS "$AZURE_OPENAI_MAX_COMPLETION_TOKENS_SECRET_NAME"; then
+  finish 1
+  return $?
+fi
 
 if [[ $# -eq 0 ]]; then
   cat <<EOF
@@ -72,5 +121,13 @@ Ejemplo:
   python -m microharness.server
 EOF
 else
+  if [[ "$MICROHARNESS_AKV_SOURCED" == "1" ]]; then
+    if "$@"; then
+      finish 0
+    else
+      finish $?
+    fi
+    return $?
+  fi
   exec "$@"
 fi
