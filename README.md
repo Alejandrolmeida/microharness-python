@@ -1,18 +1,46 @@
 # MicroHarness Python
 
-MicroHarness Python es un ejemplo pequeño de **Agent Harness** con Microsoft Agent Framework. El repositorio muestra cómo pasar de un modelo de chat a un agente operativo añadiendo contexto controlado, skills, subagentes, memoria de sesión, lifecycle hooks y publicación con **FastAPI + AG-UI**.
+![MicroHarness Python](assets/banner.svg)
 
-El objetivo es que cualquier usuario que llegue desde GitHub pueda entender la arquitectura, ejecutar una prueba mínima y recorrer los notebooks para ver cómo se construye cada pieza.
+![Versión](https://img.shields.io/badge/version-0.1.0-blue)
+![Python](https://img.shields.io/badge/python-3.10%2B-3776AB)
+![FastAPI](https://img.shields.io/badge/FastAPI-AG--UI-009688)
+![Licencia](https://img.shields.io/badge/license-MIT-green)
 
-## Qué incluye
+MicroHarness Python es un ejemplo mínimo, didáctico y ejecutable de **Agent Harness** con Microsoft Agent Framework. Muestra cómo convertir un modelo de chat en un agente operativo añadiendo contexto controlado, tools, subagentes, memoria de sesión, lifecycle hooks y publicación con **FastAPI + AG-UI**.
 
-- **Agent Loop**: observar la petición, decidir si necesita skills, incorporar resultados y sintetizar.
-- **Context Manager**: empaqueta conocimiento local y hechos persistidos antes de un turno.
-- **Skills / Tools**: funciones Python tipadas expuestas al agente con `@tool`.
-- **Sub-agents**: especialistas deterministas para arquitectura, fiabilidad y seguridad.
-- **Memory**: estado JSON, facts por sesión, trazas de tools y artefactos Markdown.
-- **Lifecycle Hooks**: eventos `before_request`, `after_request`, `before_tool` y `after_tool` en JSONL.
-- **FastAPI + AG-UI**: endpoint streaming `/agent`, endpoint JSON `/api/chat` y web local `/ui/`.
+La solución está pensada para demostraciones técnicas, aprendizaje incremental y revisiones rápidas desde GitHub sin depender de una plataforma compleja.
+
+## Versión de la solución
+
+**Versión actual:** `v0.1.0`
+
+Esta versión cubre el recorrido completo del harness: configuración segura, contexto, skills, subagentes deterministas, memoria local, lifecycle hooks, API JSON, streaming AG-UI e interfaz web local.
+
+## Tabla de contenidos
+
+- [Características](#características)
+- [Arquitectura](#arquitectura)
+- [Estructura del repositorio](#estructura-del-repositorio)
+- [Requisitos](#requisitos)
+- [Instalación](#instalación)
+- [Configuración](#configuración)
+- [Ejecución](#ejecución)
+- [Notebooks](#notebooks)
+- [Artefactos de ejecución](#artefactos-de-ejecución)
+- [Validación](#validación)
+- [Seguridad](#seguridad)
+
+## Características
+
+- **Agent Loop**: observa la petición, decide si necesita skills, incorpora resultados y sintetiza una respuesta.
+- **Context Manager**: empaqueta conocimiento local y hechos persistidos antes de cada turno.
+- **Skills / Tools**: expone funciones Python tipadas al agente mediante `@tool`.
+- **Subagentes deterministas**: delega análisis acotados a especialistas de arquitectura, fiabilidad y seguridad.
+- **Memoria local**: mantiene estado JSON, facts por sesión, trazas de tools y artefactos Markdown.
+- **Lifecycle Hooks**: registra eventos `before_request`, `after_request`, `before_tool` y `after_tool` en JSONL.
+- **FastAPI + AG-UI**: publica endpoint streaming `/agent`, endpoint JSON `/api/chat` e interfaz local `/ui/`.
+- **Recorrido guiado**: incluye notebooks incrementales para explicar cada componente paso a paso.
 
 ## Arquitectura
 
@@ -34,7 +62,7 @@ MicroHarness runtime
 Azure OpenAI / compatible model endpoint
 ```
 
-Estructura principal:
+## Estructura del repositorio
 
 ```text
 src/microharness/
@@ -57,6 +85,11 @@ notebooks/
   05_memoria_y_sesiones.ipynb
   06_lifecycle_hooks.ipynb
   07_fastapi_agui.ipynb
+scripts/
+  load_model_from_akv.sh
+  run_request.py
+  run_server.sh
+  smoke_agui.py
 working/
   contexto_harness.md
   reference/
@@ -67,9 +100,9 @@ web/static/
 
 ## Requisitos
 
-- Python 3.10+
-- Un despliegue Azure OpenAI o endpoint compatible con OpenAI
-- Azure CLI autenticado si cargas valores desde Azure Key Vault
+- Python 3.10 o superior.
+- Un despliegue de Azure OpenAI o un endpoint compatible con OpenAI.
+- Azure CLI autenticado si se cargan valores desde Azure Key Vault.
 
 El repositorio no contiene secretos. Usa `.env` local, variables de entorno o `scripts/load_model_from_akv.sh`.
 
@@ -82,7 +115,9 @@ python -m pip install --upgrade pip
 python -m pip install --pre -e '.[dev]'
 ```
 
-Configura el modelo con una de estas opciones:
+## Configuración
+
+Opción recomendada para entornos con Azure Key Vault:
 
 ```bash
 source scripts/load_model_from_akv.sh
@@ -108,13 +143,15 @@ source scripts/load_model_from_akv.sh
 python -m microharness.server
 ```
 
-Endpoints:
+Endpoints locales:
 
-- Web: `http://127.0.0.1:8000/ui/`
-- AG-UI: `http://127.0.0.1:8000/agent`
-- JSON: `http://127.0.0.1:8000/api/chat`
-- Health: `http://127.0.0.1:8000/health`
-- Health extendido: `http://127.0.0.1:8000/healthz`
+| Recurso | URL |
+| --- | --- |
+| Interfaz web | `http://127.0.0.1:8000/ui/` |
+| Stream AG-UI | `http://127.0.0.1:8000/agent` |
+| API JSON | `http://127.0.0.1:8000/api/chat` |
+| Health | `http://127.0.0.1:8000/health` |
+| Health extendido | `http://127.0.0.1:8000/healthz` |
 
 Prueba rápida del endpoint JSON:
 
@@ -130,15 +167,17 @@ python scripts/smoke_agui.py "Explica el context manager del harness"
 
 ## Notebooks
 
-Los notebooks están pensados como un recorrido incremental por la construcción del harness:
+Los notebooks forman un recorrido incremental por la construcción del harness:
 
-1. `notebooks/01_configuracion_entorno.ipynb`: variables, `.env`, Key Vault y `Settings`.
-2. `notebooks/02_context_manager.ipynb`: lectura de conocimiento local y composición del contexto.
-3. `notebooks/03_skills_y_tools.ipynb`: tools tipadas, artefactos y permisos.
-4. `notebooks/04_subagentes.ipynb`: delegación a especialistas acotados.
-5. `notebooks/05_memoria_y_sesiones.ipynb`: facts, estado JSON y continuidad.
-6. `notebooks/06_lifecycle_hooks.ipynb`: trazas alrededor de peticiones y tools.
-7. `notebooks/07_fastapi_agui.ipynb`: publicación con FastAPI, `/api/chat` y `/agent`.
+| # | Notebook | Objetivo |
+| --- | --- | --- |
+| 1 | `notebooks/01_configuracion_entorno.ipynb` | Variables, `.env`, Key Vault y `Settings`. |
+| 2 | `notebooks/02_context_manager.ipynb` | Lectura de conocimiento local y composición del contexto. |
+| 3 | `notebooks/03_skills_y_tools.ipynb` | Tools tipadas, artefactos y permisos. |
+| 4 | `notebooks/04_subagentes.ipynb` | Delegación a especialistas acotados. |
+| 5 | `notebooks/05_memoria_y_sesiones.ipynb` | Facts, estado JSON y continuidad. |
+| 6 | `notebooks/06_lifecycle_hooks.ipynb` | Trazas alrededor de peticiones y tools. |
+| 7 | `notebooks/07_fastapi_agui.ipynb` | Publicación con FastAPI, `/api/chat` y `/agent`. |
 
 ## Artefactos de ejecución
 
@@ -164,3 +203,7 @@ python -m ruff check .
 - `.env.example` contiene solo placeholders.
 - Las skills incluidas son locales y no destructivas.
 - Las acciones sensibles deben modelarse con aprobación humana.
+
+## Licencia
+
+Este proyecto se distribuye bajo licencia MIT.
