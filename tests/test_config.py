@@ -25,8 +25,22 @@ def test_load_settings_requires_model(monkeypatch):
     monkeypatch.setenv("AZURE_OPENAI_BASE_URL", "https://example.invalid/openai/v1")
 
     try:
-        load_settings()
+        load_settings(require_model=True)
     except RuntimeError as exc:
         assert "Falta AZURE_OPENAI_CHAT_COMPLETION_MODEL" in str(exc)
     else:
         raise AssertionError("load_settings should fail without a model")
+
+
+def test_load_settings_allows_unconfigured_runtime(monkeypatch):
+    monkeypatch.delenv("AZURE_OPENAI_CHAT_COMPLETION_MODEL", raising=False)
+    monkeypatch.delenv("AZURE_OPENAI_MODEL", raising=False)
+    monkeypatch.delenv("OPENAI_CHAT_COMPLETION_MODEL", raising=False)
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    monkeypatch.delenv("AZURE_OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("AZURE_OPENAI_ENDPOINT", raising=False)
+
+    settings = load_settings()
+
+    assert settings.model is None
+    assert settings.is_model_configured is False

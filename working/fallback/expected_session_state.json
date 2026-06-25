@@ -1,7 +1,0 @@
-{
-  "run_count": 1,
-  "last_run_at": "fallback",
-  "last_prompt": "Explícame Agent Harness en 5 bullets para una audiencia técnica. Usa el contexto disponible y separa Agent Loop, Tools, Memory, Planning y Permissions.",
-  "last_summary": "- **Agent Loop:** el harness organiza el ciclo observar, decidir, usar tools y sintetizar una respuesta breve.\n- **Tools:** el agente consulta working/contexto_harness.md mediante una tool.\n- **Memory:** se guarda estado simple en working/output/session_state.json.\n- **Planning:** el harness puede evolucionar hacia planificación explícita.\n- **Permissions:** las acciones sensibles deberían pasar por approvals.",
-  "artifact_path": "working/output/demo_summary.md"
-}

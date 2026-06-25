@@ -1,6 +1,6 @@
 # Instrucciones para GitHub Copilot — MicroHarness Python
 
-Este repositorio contiene una demo pública de Microsoft Agent Framework en Python.
+Este repositorio contiene un ejemplo público de Microsoft Agent Framework en Python.
 
 ## Objetivo
 
@@ -16,7 +16,7 @@ Explicar cómo un pequeño harness convierte un modelo en agente operativo con:
 ## Reglas
 
 - Mantén el proyecto mínimo, claro y pedagógico.
-- No conviertas la demo en una plataforma grande salvo petición explícita.
+- No conviertas el ejemplo en una plataforma grande salvo petición explícita.
 - No inventes nombres de modelos, endpoints ni arquitectura privada.
 - Prioriza ejemplos seguros y simulados.
 - No incluyas secretos, tokens, claves, endpoints privados ni `.env`.
@@ -26,5 +26,5 @@ Explicar cómo un pequeño harness convierte un modelo en agente operativo con:
 ## Estilo
 
 - Código Python sencillo, tipado y fácil de narrar en directo.
-- README orientado a demo pública.
+- README orientado a usuarios de GitHub que llegan por primera vez.
 - Cambios pequeños y revisables.

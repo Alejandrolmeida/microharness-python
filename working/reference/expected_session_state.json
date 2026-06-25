@@ -1,0 +1,9 @@
+{
+  "run_count": 1,
+  "last_run_at": "reference",
+  "last_prompt": "Explica cómo este harness convierte un modelo en agente operativo.",
+  "last_summary": "MicroHarness usa Agent Loop, Context Manager, Skills, Sub-agents, Memory y Lifecycle Hooks.",
+  "artifact_path": "working/output/agent_summary.md",
+  "facts": {},
+  "tool_trace": []
+}

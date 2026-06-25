@@ -1,59 +1,66 @@
 # MicroHarness Python
 
-MicroHarness Python es una demo pequeña y cronometrada para explicar cómo un **Agent Harness** convierte un modelo en un agente operativo: añade tools, contexto controlado, estado de sesión y una capa de interacción mediante **FastAPI + AG-UI**.
+MicroHarness Python es un ejemplo pequeño de **Agent Harness** con Microsoft Agent Framework. El repositorio muestra cómo pasar de un modelo de chat a un agente operativo añadiendo contexto controlado, skills, subagentes, memoria de sesión, lifecycle hooks y publicación con **FastAPI + AG-UI**.
 
-La demo está pensada para una explicación de **5 minutos** inspirada en la sesión BRK243 de Microsoft Build, pero implementada en Python para que sea fácil de narrar y modificar.
+El objetivo es que cualquier usuario que llegue desde GitHub pueda entender la arquitectura, ejecutar una prueba mínima y recorrer los notebooks para ver cómo se construye cada pieza.
 
-## Qué demuestra
+## Qué incluye
 
-- **Agent Loop**: observar, decidir, usar tools y sintetizar.
-- **Tools**: funciones Python tipadas que aportan capacidades verificables.
-- **Contexto controlado**: lectura de `working/contexto_harness.md` mediante una tool.
-- **Sesión simple**: estado persistido en `working/output/session_state.json`.
-- **Artefactos**: resumen guardado en `working/output/demo_summary.md`.
-- **FastAPI + AG-UI**: endpoint principal de agente y fallback REST estable.
+- **Agent Loop**: observar la petición, decidir si necesita skills, incorporar resultados y sintetizar.
+- **Context Manager**: empaqueta conocimiento local y hechos persistidos antes de un turno.
+- **Skills / Tools**: funciones Python tipadas expuestas al agente con `@tool`.
+- **Sub-agents**: especialistas deterministas para arquitectura, fiabilidad y seguridad.
+- **Memory**: estado JSON, facts por sesión, trazas de tools y artefactos Markdown.
+- **Lifecycle Hooks**: eventos `before_request`, `after_request`, `before_tool` y `after_tool` en JSONL.
+- **FastAPI + AG-UI**: endpoint streaming `/agent`, endpoint JSON `/api/chat` y web local `/ui/`.
 
 ## Arquitectura
 
 ```text
-Webapp / Notebook / Cliente
+Browser / CLI / Notebook
         ↓
 FastAPI + AG-UI
         ↓
-Microsoft Agent Framework
+Microsoft Agent Framework Agent
         ↓
-MicroHarness
-  ├─ tools
-  ├─ contexto
-  ├─ estado simple
-  └─ artefactos
+MicroHarness runtime
+  ├─ configuration
+  ├─ context manager
+  ├─ skills / tools
+  ├─ deterministic sub-agents
+  ├─ file-backed memory
+  └─ lifecycle hooks
         ↓
-Azure OpenAI / Foundry model
+Azure OpenAI / compatible model endpoint
 ```
 
 Estructura principal:
 
 ```text
 src/microharness/
-  config.py      # carga segura de configuración local
-  harness.py     # convierte modelo + tools + instrucciones en Agent
-  memory.py      # persistencia simple para sesión y artefactos
-  server.py      # FastAPI + AG-UI + fallback REST
-  client.py      # cliente terminal AG-UI interactivo
-  tools.py       # tools de contexto, resumen y demo
+  config.py       # carga segura de configuración local
+  context.py      # context manager
+  lifecycle.py    # hooks y trazas JSONL
+  subagents.py    # especialistas acotados
+  tools.py        # skills del agente
+  memory.py       # persistencia local
+  harness.py      # construcción del Agent Framework Agent
+  server.py       # FastAPI + AG-UI + endpoint JSON
+  client.py       # cliente terminal AG-UI interactivo
+docs/
+  architecture.md
+notebooks/
+  01_configuracion_entorno.ipynb
+  02_context_manager.ipynb
+  03_skills_y_tools.ipynb
+  04_subagentes.ipynb
+  05_memoria_y_sesiones.ipynb
+  06_lifecycle_hooks.ipynb
+  07_fastapi_agui.ipynb
 working/
   contexto_harness.md
-  fallback/
+  reference/
   output/
-notebooks/
-  01_agent_loop_basico.ipynb
-  02_tools_y_contexto.ipynb
-  03_microharness_fastapi_agui.ipynb
-  04_guion_demo_5_minutos.ipynb
-scripts/
-  load_model_from_akv.sh
-  run_demo_client.py
-  smoke_agui.py
 web/static/
   index.html
 ```
@@ -61,44 +68,37 @@ web/static/
 ## Requisitos
 
 - Python 3.10+
-- Acceso a un modelo Azure OpenAI / Microsoft Foundry
-- Azure CLI autenticado si cargas secretos desde Azure Key Vault
+- Un despliegue Azure OpenAI o endpoint compatible con OpenAI
+- Azure CLI autenticado si cargas valores desde Azure Key Vault
 
-No instales dependencias durante la demo. Prepara el entorno antes.
+El repositorio no contiene secretos. Usa `.env` local, variables de entorno o `scripts/load_model_from_akv.sh`.
 
-## Configuración
-
-Instalación local:
+## Instalación
 
 ```bash
-cd /home/alejandrolmeida/source/github/alejandrolmeida/microharness-python
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install --pre -e '.[dev]'
 ```
 
-El repositorio no contiene secretos. La forma recomendada es reutilizar la configuración local de Azurebrains:
+Configura el modelo con una de estas opciones:
 
 ```bash
 source scripts/load_model_from_akv.sh
 ```
 
-También puedes copiar `.env.example` a `.env` y rellenar solo valores locales. Variables soportadas:
+o copia `.env.example` a `.env` y rellena valores locales:
 
 ```bash
-AZURE_OPENAI_ENDPOINT=
-AZURE_OPENAI_DEPLOYMENT=
-AZURE_OPENAI_CHAT_COMPLETION_MODEL=
-AZURE_OPENAI_MODEL=
-AZURE_OPENAI_API_KEY=
-AZURE_OPENAI_API_VERSION=
-AZURE_OPENAI_BASE_URL=
-MICROHARNESS_HOST=127.0.0.1
-MICROHARNESS_PORT=8000
+AZURE_OPENAI_BASE_URL="https://<resource>.openai.azure.com/openai/v1"
+AZURE_OPENAI_API_KEY="<your-api-key>"
+AZURE_OPENAI_CHAT_COMPLETION_MODEL="<your-deployment-name>"
+MICROHARNESS_HOST="127.0.0.1"
+MICROHARNESS_PORT="8000"
 ```
 
-## Ejecución rápida
+## Ejecución
 
 Arranca el servidor:
 
@@ -110,142 +110,51 @@ python -m microharness.server
 
 Endpoints:
 
-- Webapp: `http://127.0.0.1:8000/ui/`
+- Web: `http://127.0.0.1:8000/ui/`
 - AG-UI: `http://127.0.0.1:8000/agent`
+- JSON: `http://127.0.0.1:8000/api/chat`
 - Health: `http://127.0.0.1:8000/health`
 - Health extendido: `http://127.0.0.1:8000/healthz`
-- Fallback REST: `http://127.0.0.1:8000/api/chat`
 
-Ejecuta el cliente de demo en otra terminal:
-
-```bash
-source .venv/bin/activate
-python scripts/run_demo_client.py
-```
-
-El cliente imprime:
-
-1. prompt enviado,
-2. respuesta del agente,
-3. ruta del artefacto generado,
-4. estado de sesión.
-
-## Demo en 5 minutos
-
-### 0:00–0:45 — Presentación
-
-> Vamos a ver una versión mínima de un harness en Python. No busca enseñar todas las capacidades de Agent Framework, sino el patrón: modelo, agente, tools, contexto, estado y endpoint.
-
-### 0:45–1:45 — Código del agente
-
-Mostrar:
-
-- `src/microharness/harness.py`
-- creación del agente,
-- instrucciones,
-- tools registradas.
-
-Mensaje:
-
-> Aquí está el paso del modelo al agente.
-
-### 1:45–2:45 — Tools y contexto
-
-Mostrar:
-
-- `src/microharness/tools.py`
-- `working/contexto_harness.md`
-
-Mensaje:
-
-> El agente puede consultar contexto controlado y generar artefactos.
-
-### 2:45–3:45 — FastAPI / AG-UI
-
-Mostrar:
-
-- `src/microharness/server.py`
-- `/agent`
-- `/api/chat`
-- `/health`
-
-Mensaje:
-
-> Esta es la capa que permitiría integrar el agente con una webapp, una app móvil o CopilotKit.
-
-### 3:45–4:40 — Ejecución
-
-Ejecutar:
+Prueba rápida del endpoint JSON:
 
 ```bash
-python scripts/run_demo_client.py
+python scripts/run_request.py
 ```
 
-Mostrar:
+Prueba rápida del stream AG-UI:
 
-- respuesta,
-- `working/output/demo_summary.md`,
-- `working/output/session_state.json`.
+```bash
+python scripts/smoke_agui.py "Explica el context manager del harness"
+```
 
-### 4:40–5:00 — Cierre
+## Notebooks
 
-> Esto es un micro-harness: modelo + agente + tools + contexto + sesión + endpoint de interacción. A partir de aquí se pueden añadir memoria persistente, planning, approvals, subagentes, MCP, CodeAct o despliegue en Foundry.
+Los notebooks están pensados como un recorrido incremental por la construcción del harness:
 
-## Uso de notebooks
+1. `notebooks/01_configuracion_entorno.ipynb`: variables, `.env`, Key Vault y `Settings`.
+2. `notebooks/02_context_manager.ipynb`: lectura de conocimiento local y composición del contexto.
+3. `notebooks/03_skills_y_tools.ipynb`: tools tipadas, artefactos y permisos.
+4. `notebooks/04_subagentes.ipynb`: delegación a especialistas acotados.
+5. `notebooks/05_memoria_y_sesiones.ipynb`: facts, estado JSON y continuidad.
+6. `notebooks/06_lifecycle_hooks.ipynb`: trazas alrededor de peticiones y tools.
+7. `notebooks/07_fastapi_agui.ipynb`: publicación con FastAPI, `/api/chat` y `/agent`.
 
-Los notebooks están pensados para una demo controlada por celdas:
+## Artefactos de ejecución
 
-1. `notebooks/01_agent_loop_basico.ipynb`: llamada básica o simulación.
-2. `notebooks/02_tools_y_contexto.ipynb`: lectura de contexto y guardado de artefacto.
-3. `notebooks/03_microharness_fastapi_agui.ipynb`: servidor, `/health` y `/api/chat`.
-4. `notebooks/04_guion_demo_5_minutos.ipynb`: guion principal con plan B.
+El runtime escribe únicamente en `working/output/`:
 
-## Plan B
+- `agent_summary.md`: último artefacto generado.
+- `session_state.json`: contador de ejecuciones, facts y trazas de tools.
+- `lifecycle_trace.jsonl`: eventos de hooks.
 
-La demo no depende al 100% de la red. Si falla el modelo, AG-UI o FastAPI, usa:
-
-- `working/fallback/expected_response.md`
-- `working/fallback/expected_session_state.json`
-- `working/fallback/expected_demo_summary.md`
-
-El cliente `scripts/run_demo_client.py` también activa un plan B local si el servidor no responde.
-
-## Camino principal y fallback
-
-Camino principal:
-
-1. Microsoft Agent Framework crea el agente.
-2. AG-UI transmite eventos del agente.
-3. FastAPI expone `/agent`.
-4. La webapp o cliente consume el stream.
-
-Fallback estable:
-
-1. FastAPI expone `/api/chat`.
-2. El endpoint ejecuta el agente y siempre guarda artefacto y estado.
-3. Si el modelo falla, usa la respuesta pregenerada.
-
-## Cómo extenderlo
-
-Siguientes pasos naturales:
-
-- memoria persistente en Cosmos DB, Blob Storage, PostgreSQL o Redis,
-- approvals más visibles desde AG-UI,
-- subagentes especializados,
-- MCP servers para fuentes externas,
-- observabilidad y evals,
-- despliegue en Microsoft Foundry,
-- UI React o integración con CopilotKit.
-
-## Relación con BRK243
-
-Esta demo no replica toda la arquitectura de la sesión BRK243. Toma el patrón conceptual —modelo + harness + tools + contexto + sesión + UI— y lo reduce a un proyecto Python pequeño, seguro y explicable en directo.
+`working/reference/` contiene respuestas reproducibles para ejecutar el recorrido sin credenciales de modelo.
 
 ## Validación
 
 ```bash
-python -m compileall src tests scripts
-python -m pytest
+python -m compileall src scripts tests
+PYTHONPATH=src python -m pytest
 python -m ruff check .
 ```
 
@@ -253,5 +162,5 @@ python -m ruff check .
 
 - No se commitean claves, tokens, endpoints privados ni `.env`.
 - `.env.example` contiene solo placeholders.
-- Las tools son locales, simuladas y no destructivas.
-- `scripts/load_model_from_akv.sh` oculta valores sensibles al imprimir.
+- Las skills incluidas son locales y no destructivas.
+- Las acciones sensibles deben modelarse con aprobación humana.

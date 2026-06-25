@@ -1,4 +1,4 @@
-"""Small, safe demo tools exposed to the Agent Framework agent."""
+"""Safe skills exposed to the Agent Framework agent."""
 
 from __future__ import annotations
 
@@ -7,28 +7,34 @@ from typing import Annotated, Any
 from agent_framework import tool
 from pydantic import Field
 
-from microharness.memory import read_harness_context_file, write_demo_summary
-
-_SESSION_FACTS: dict[str, list[str]] = {}
+from microharness.context import ContextManager
+from microharness.lifecycle import HOOKS
+from microharness.memory import (
+    append_tool_trace,
+    read_facts,
+    remember_fact,
+    write_agent_artifact,
+)
+from microharness.subagents import SUBAGENTS
 
 
 @tool
 def read_harness_context() -> dict[str, str]:
-    """Read the controlled local context used by the MicroHarness demo."""
+    """Read the controlled local context used by the harness."""
 
-    # Esta tool simula acceso a una fuente corporativa controlada.
-    # En producción podría ser SharePoint, GitHub, Azure DevOps o un MCP server.
-    return {
-        "source": "working/contexto_harness.md",
-        "content": read_harness_context_file(),
-    }
+    HOOKS.before_tool("read_harness_context", {})
+    context = ContextManager().build()
+    result = {"source": context.source, "content": context.knowledge}
+    append_tool_trace("read_harness_context", {"source": context.source})
+    HOOKS.after_tool("read_harness_context", {"source": context.source})
+    return result
 
 
 @tool
-def save_demo_summary(
+def save_agent_artifact(
     prompt: Annotated[
         str,
-        Field(description="Original user prompt that produced the demo summary."),
+        Field(description="Original user prompt that produced the artifact."),
     ],
     summary: Annotated[
         str,
@@ -37,8 +43,10 @@ def save_demo_summary(
 ) -> dict[str, Any]:
     """Save the agent response as a reusable markdown artifact and session state."""
 
-    # Aquí el agente ya no solo responde por pantalla: genera un artefacto reutilizable.
-    state = write_demo_summary(prompt=prompt, summary=summary)
+    HOOKS.before_tool("save_agent_artifact", {"prompt_chars": len(prompt)})
+    state = write_agent_artifact(prompt=prompt, summary=summary)
+    append_tool_trace("save_agent_artifact", {"artifact_path": state["artifact_path"]})
+    HOOKS.after_tool("save_agent_artifact", {"artifact_path": state["artifact_path"]})
     return {
         "artifact_path": state["artifact_path"],
         "session_state_path": "working/output/session_state.json",
@@ -59,7 +67,7 @@ def explain_agent_framework_concept(
         ),
     ],
 ) -> dict[str, str]:
-    """Explain a core Microsoft Agent Framework concept for the live demo."""
+    """Explain a core Microsoft Agent Framework concept."""
 
     key = concept.strip().lower()
     concepts = {
@@ -114,37 +122,63 @@ def explain_agent_framework_concept(
 def remember_session_fact(
     session_id: Annotated[
         str,
-        Field(description="Demo session identifier, for example 'live-demo'."),
+        Field(description="Session identifier, for example 'web-session'."),
     ],
     fact: Annotated[
         str,
-        Field(description="Short fact to keep in the in-memory demo context."),
+        Field(description="Short fact to keep in persisted session context."),
     ],
 ) -> dict[str, Any]:
-    """Store a short fact in volatile in-memory session context for the demo."""
+    """Store a short fact in persisted session context."""
 
     normalized_session = session_id.strip() or "default"
     normalized_fact = fact.strip()
-    _SESSION_FACTS.setdefault(normalized_session, []).append(normalized_fact)
+    HOOKS.before_tool(
+        "remember_session_fact",
+        {"session_id": normalized_session, "fact_chars": len(normalized_fact)},
+    )
+    remember_fact(normalized_session, normalized_fact)
+    facts = read_facts(normalized_session)
+    append_tool_trace("remember_session_fact", {"session_id": normalized_session})
+    HOOKS.after_tool(
+        "remember_session_fact",
+        {"session_id": normalized_session, "facts_in_session": len(facts)},
+    )
     return {
         "session_id": normalized_session,
         "stored_fact": normalized_fact,
-        "facts_in_session": len(_SESSION_FACTS[normalized_session]),
-        "scope": "process-memory-only",
+        "facts_in_session": len(facts),
+        "scope": "file-backed-session",
     }
 
 
 @tool
 def read_session_context(
-    session_id: Annotated[str, Field(description="Demo session identifier to inspect.")],
+    session_id: Annotated[str, Field(description="Session identifier to inspect.")],
 ) -> dict[str, Any]:
-    """Read the volatile in-memory context collected for a demo session."""
+    """Read the persisted context collected for a session."""
 
     normalized_session = session_id.strip() or "default"
     return {
         "session_id": normalized_session,
-        "facts": _SESSION_FACTS.get(normalized_session, []),
-        "scope": "process-memory-only",
+        "facts": read_facts(normalized_session),
+        "scope": "file-backed-session",
+    }
+
+
+@tool
+def build_context_snapshot(
+    session_id: Annotated[str, Field(description="Session identifier for the context snapshot.")],
+) -> dict[str, Any]:
+    """Return the exact context bundle assembled by the context manager."""
+
+    context = ContextManager().build(session_id)
+    return {
+        "session_id": context.session_id,
+        "source": context.source,
+        "facts": context.facts,
+        "run_count": context.run_count,
+        "prompt_block": context.as_prompt_block(),
     }
 
 
@@ -155,7 +189,7 @@ def draft_extension_plan(
         Field(description="Advanced scenario to extend the micro harness toward."),
     ],
 ) -> dict[str, Any]:
-    """Draft next steps to evolve the demo toward advanced agentic scenarios."""
+    """Draft next steps to evolve the harness toward advanced agentic scenarios."""
 
     return {
         "scenario": scenario,
@@ -170,6 +204,24 @@ def draft_extension_plan(
     }
 
 
+@tool
+def delegate_to_subagent(
+    name: Annotated[
+        str,
+        Field(description="Specialist name: architect, reliability or security."),
+    ],
+    task: Annotated[str, Field(description="Task to delegate to the specialist sub-agent.")],
+) -> dict[str, str]:
+    """Delegate a bounded task to a deterministic specialist sub-agent."""
+
+    HOOKS.before_tool("delegate_to_subagent", {"name": name})
+    result = SUBAGENTS.run(name, task)
+    payload = {"name": result.name, "focus": result.focus, "result": result.result}
+    append_tool_trace("delegate_to_subagent", payload)
+    HOOKS.after_tool("delegate_to_subagent", {"name": result.name, "focus": result.focus})
+    return payload
+
+
 @tool(approval_mode="always_require")
 def propose_foundry_deployment(
     environment: Annotated[
@@ -181,22 +233,24 @@ def propose_foundry_deployment(
         Field(description="Why this deployment should be approved."),
     ],
 ) -> dict[str, str]:
-    """Propose a deployment action that demonstrates human-in-the-loop approval."""
+    """Propose a deployment action that requires human-in-the-loop approval."""
 
     return {
         "environment": environment,
         "status": "deployment-proposal-recorded",
         "reason": reason,
-        "note": "This is a safe demo tool; it does not deploy anything.",
+        "note": "This safe tool records intent only; it does not deploy anything.",
     }
 
 
-DEMO_TOOLS = [
+HARNESS_TOOLS = [
     read_harness_context,
-    save_demo_summary,
+    save_agent_artifact,
     explain_agent_framework_concept,
     remember_session_fact,
     read_session_context,
+    build_context_snapshot,
     draft_extension_plan,
+    delegate_to_subagent,
     propose_foundry_deployment,
 ]

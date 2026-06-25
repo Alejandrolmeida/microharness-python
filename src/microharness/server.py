@@ -6,7 +6,7 @@ from pathlib import Path
 
 import uvicorn
 from agent_framework_ag_ui import add_agent_framework_fastapi_endpoint
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,37 +14,39 @@ from pydantic import BaseModel, Field
 
 from microharness.config import Settings, load_settings
 from microharness.harness import build_agent, build_agui_agent
+from microharness.lifecycle import HOOKS
 from microharness.memory import (
     SUMMARY_PATH,
-    read_fallback_response,
+    read_reference_response,
     read_session_state,
-    write_demo_summary,
+    write_agent_artifact,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
 STATIC_DIR = ROOT / "web" / "static"
 
-DEMO_PROMPT = (
-    "Explícame Agent Harness en 5 bullets para una audiencia técnica. "
-    "Usa el contexto disponible y separa Agent Loop, Tools, Memory, Planning y Permissions."
+DEFAULT_PROMPT = (
+    "Explica cómo este harness convierte un modelo en agente operativo. "
+    "Separa Agent Loop, Context Manager, Skills, Sub-agents, Memory y Lifecycle Hooks."
 )
 
 
 class ChatRequest(BaseModel):
-    """Stable REST payload for the fallback demo endpoint."""
+    """Stable REST payload for the HTTP agent endpoint."""
 
-    prompt: str = Field(default=DEMO_PROMPT, min_length=1)
-    use_fallback: bool = True
+    prompt: str = Field(default=DEFAULT_PROMPT, min_length=1)
+    session_id: str = Field(default="default", min_length=1)
+    allow_reference_response: bool = True
 
 
 class ChatResponse(BaseModel):
-    """Stable REST response printed by the demo client."""
+    """Stable REST response returned by the HTTP agent endpoint."""
 
     prompt: str
     response: str
     artifact_path: str
     session_state: dict[str, object]
-    fallback_used: bool = False
+    reference_response_used: bool = False
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -53,7 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
     app = FastAPI(
         title="MicroHarness Python",
-        description="Demo mínima de Microsoft Agent Framework con FastAPI y AG-UI.",
+        description="Minimal Agent Framework harness with FastAPI and AG-UI.",
         version="0.1.0",
     )
     app.add_middleware(
@@ -70,24 +72,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "status": "ok",
             "agent": "MicroHarness",
             "model": settings.model,
+            "model_configured": settings.is_model_configured,
             "route": "base_url" if settings.uses_openai_compatible_url else "azure_endpoint",
             "approvals_enabled": settings.require_confirmation,
         }
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        """Health endpoint requested by the five-minute demo instructions."""
+        """Health endpoint for lightweight checks."""
 
         return {"status": "ok"}
 
     @app.post("/api/chat", response_model=ChatResponse)
     async def api_chat(request: ChatRequest) -> ChatResponse:
-        """Stable REST fallback when the official AG-UI path is not the focus."""
+        """Run the agent through a simple JSON endpoint."""
 
-        agent = build_agent(settings)
-        fallback_used = False
+        reference_response_used = False
+        HOOKS.before_request(request.session_id, request.prompt)
 
         try:
+            if not settings.is_model_configured:
+                raise RuntimeError("El modelo no está configurado.")
+            agent = build_agent(settings)
             chunks: list[str] = []
             async for update in agent.run(request.prompt, stream=True):
                 if update.text:
@@ -96,21 +102,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if not response_text:
                 raise RuntimeError("El modelo no devolvió texto.")
         except Exception:
-            if not request.use_fallback:
+            if not request.allow_reference_response:
                 raise
-            fallback_used = True
-            response_text = read_fallback_response().strip()
+            reference_response_used = True
+            response_text = read_reference_response().strip()
 
-        # Garantiza que la demo siempre deja un artefacto y estado persistido,
-        # incluso si el agente no invocó la tool durante el plan B.
-        session_state = write_demo_summary(prompt=request.prompt, summary=response_text)
+        session_state = write_agent_artifact(prompt=request.prompt, summary=response_text)
+        HOOKS.after_request(request.session_id, response_text)
 
         return ChatResponse(
             prompt=request.prompt,
             response=response_text,
             artifact_path=str(SUMMARY_PATH.relative_to(ROOT)),
             session_state=read_session_state() or session_state,
-            fallback_used=fallback_used,
+            reference_response_used=reference_response_used,
         )
 
     @app.get("/")
@@ -120,7 +125,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if STATIC_DIR.exists():
         app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
 
-    add_agent_framework_fastapi_endpoint(app, build_agui_agent(settings), "/agent")
+    if settings.is_model_configured:
+        add_agent_framework_fastapi_endpoint(app, build_agui_agent(settings), "/agent")
+    else:
+
+        @app.post("/agent")
+        async def agent_requires_configuration() -> None:
+            raise HTTPException(
+                status_code=503,
+                detail="Configura un modelo para habilitar el endpoint AG-UI.",
+            )
+
     return app
 
 

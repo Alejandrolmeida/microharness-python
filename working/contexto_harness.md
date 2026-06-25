@@ -1,6 +1,6 @@
 # Contexto controlado para MicroHarness Python
 
-Este fichero representa una fuente de conocimiento controlada por el harness. En una demo real podría ser SharePoint, GitHub, Azure DevOps, Cost Management, Business Central o un MCP server.
+Este fichero representa una fuente de conocimiento controlada por el harness. En una solución real podría ser SharePoint, GitHub, Azure DevOps, Cost Management, Business Central o un MCP server.
 
 ## Agent Loop
 
@@ -16,7 +16,7 @@ Las tools son funciones controladas que el agente puede invocar para leer datos,
 
 ## Sub-agents
 
-Los subagentes permiten delegar tareas especializadas. No son necesarios en esta demo, pero son un siguiente paso natural cuando una solución crece.
+Los subagentes permiten delegar tareas especializadas. En este repositorio existen especialistas deterministas para arquitectura, fiabilidad y seguridad.
 
 ## Memory and Session Persistence
 

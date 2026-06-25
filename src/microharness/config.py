@@ -1,4 +1,4 @@
-"""Configuration helpers for the MicroHarness demo.
+"""Configuration helpers for the MicroHarness runtime.
 
 The project deliberately keeps secrets outside the repository. Values can come from:
 1. a local .env file (ignored by git),
@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 class Settings:
     """Runtime settings for the agent harness."""
 
-    model: str
+    model: str | None
     api_key: str | None
     base_url: str | None
     azure_endpoint: str | None
@@ -33,6 +33,12 @@ class Settings:
         """Return true when the app should route through a full /openai/v1 base URL."""
 
         return bool(self.base_url)
+
+    @property
+    def is_model_configured(self) -> bool:
+        """Return true when a model and an endpoint are available."""
+
+        return bool(self.model and (self.base_url or self.azure_endpoint))
 
 
 def _optional(value: str | None) -> str | None:
@@ -54,7 +60,7 @@ def _parse_int(value: str | None) -> int | None:
     return int(value)
 
 
-def load_settings() -> Settings:
+def load_settings(*, require_model: bool = False) -> Settings:
     """Load settings from environment variables and an optional local .env file."""
 
     load_dotenv()
@@ -65,7 +71,7 @@ def load_settings() -> Settings:
         or os.getenv("OPENAI_CHAT_COMPLETION_MODEL")
         or os.getenv("OPENAI_MODEL")
     )
-    if not model:
+    if require_model and not model:
         raise RuntimeError(
             "Falta AZURE_OPENAI_CHAT_COMPLETION_MODEL o AZURE_OPENAI_MODEL. "
             "Ejecuta scripts/load_model_from_akv.sh o crea un .env local."
@@ -74,7 +80,7 @@ def load_settings() -> Settings:
     base_url = _optional(os.getenv("AZURE_OPENAI_BASE_URL") or os.getenv("OPENAI_BASE_URL"))
     azure_endpoint = _optional(os.getenv("AZURE_OPENAI_ENDPOINT"))
 
-    if not base_url and not azure_endpoint:
+    if require_model and not base_url and not azure_endpoint:
         raise RuntimeError(
             "Falta AZURE_OPENAI_BASE_URL o AZURE_OPENAI_ENDPOINT. "
             "Para la configuración Azurebrains usa AZURE_OPENAI_BASE_URL con la URL /openai/v1."

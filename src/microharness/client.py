@@ -1,4 +1,4 @@
-"""Small AG-UI terminal client for the MicroHarness demo."""
+"""Small AG-UI terminal client for MicroHarness."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ async def run_client() -> None:
     agent = Agent(
         name="MicroHarnessClient",
         client=chat_client,
-        instructions="Eres un cliente de demo. Mantén la conversación en español.",
+        instructions="Mantén la conversación en español y muestra respuestas compactas.",
     )
     session = agent.create_session()
 

@@ -1,4 +1,4 @@
-"""MicroHarness Python demo package."""
+"""MicroHarness Python package."""
 
 __all__ = ["__version__"]
 

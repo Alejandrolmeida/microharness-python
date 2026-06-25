@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "microharness-python"
 version = "0.1.0"
-description = "Demo mínima de Microsoft Agent Framework con harness Python, FastAPI y AG-UI."
+description = "Minimal Microsoft Agent Framework harness in Python with FastAPI and AG-UI."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
