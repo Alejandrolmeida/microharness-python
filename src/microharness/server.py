@@ -12,9 +12,11 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from microharness import __version__
 from microharness.config import Settings, load_settings
 from microharness.harness import build_agent, build_agui_agent
 from microharness.lifecycle import HOOKS
+from microharness.maf_native import build_maf_native_agent, build_maf_native_agui_agent
 from microharness.memory import (
     SUMMARY_PATH,
     read_reference_response,
@@ -56,7 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="MicroHarness Python",
         description="Minimal Agent Framework harness with FastAPI and AG-UI.",
-        version="0.1.0",
+        version=__version__,
     )
     app.add_middleware(
         CORSMiddleware,
@@ -118,6 +120,42 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             reference_response_used=reference_response_used,
         )
 
+    @app.post("/api/chat/maf-native", response_model=ChatResponse)
+    async def api_chat_maf_native(request: ChatRequest) -> ChatResponse:
+        """Run the MAF-native variant with AgentSession and native providers."""
+
+        reference_response_used = False
+        HOOKS.before_request(request.session_id, request.prompt)
+
+        try:
+            if not settings.is_model_configured:
+                raise RuntimeError("El modelo no está configurado.")
+            agent = build_maf_native_agent(settings)
+            session = agent.create_session(session_id=request.session_id)
+            chunks: list[str] = []
+            async for update in agent.run(request.prompt, session=session, stream=True):
+                if update.text:
+                    chunks.append(update.text)
+            response_text = "".join(chunks).strip()
+            if not response_text:
+                raise RuntimeError("El modelo no devolvió texto.")
+        except Exception:
+            if not request.allow_reference_response:
+                raise
+            reference_response_used = True
+            response_text = read_reference_response().strip()
+
+        session_state = write_agent_artifact(prompt=request.prompt, summary=response_text)
+        HOOKS.after_request(request.session_id, response_text)
+
+        return ChatResponse(
+            prompt=request.prompt,
+            response=response_text,
+            artifact_path=str(SUMMARY_PATH.relative_to(ROOT)),
+            session_state=read_session_state() or session_state,
+            reference_response_used=reference_response_used,
+        )
+
     @app.get("/")
     async def root() -> RedirectResponse:
         return RedirectResponse(url="/ui/")
@@ -127,6 +165,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     if settings.is_model_configured:
         add_agent_framework_fastapi_endpoint(app, build_agui_agent(settings), "/agent")
+        add_agent_framework_fastapi_endpoint(
+            app,
+            build_maf_native_agui_agent(settings),
+            "/agent/maf-native",
+        )
     else:
 
         @app.post("/agent")
@@ -134,6 +177,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(
                 status_code=503,
                 detail="Configura un modelo para habilitar el endpoint AG-UI.",
+            )
+
+        @app.post("/agent/maf-native")
+        async def native_agent_requires_configuration() -> None:
+            raise HTTPException(
+                status_code=503,
+                detail="Configura un modelo para habilitar el endpoint AG-UI MAF-native.",
             )
 
     return app

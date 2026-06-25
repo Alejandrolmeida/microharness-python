@@ -2,20 +2,25 @@
 
 ![MicroHarness Python](assets/banner.svg)
 
-![Versión](https://img.shields.io/badge/version-0.1.0-blue)
+![Versión](https://img.shields.io/badge/version-0.2.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB)
 ![FastAPI](https://img.shields.io/badge/FastAPI-AG--UI-009688)
 ![Licencia](https://img.shields.io/badge/license-MIT-green)
 
 MicroHarness Python es un ejemplo mínimo, didáctico y ejecutable de **Agent Harness** con Microsoft Agent Framework. Muestra cómo convertir un modelo de chat en un agente operativo añadiendo contexto controlado, tools, subagentes, memoria de sesión, lifecycle hooks y publicación con **FastAPI + AG-UI**.
 
+El repositorio incluye dos recorridos complementarios:
+
+- **Microharness didáctico:** implementa memoria, contexto, sesiones y hooks con código local muy pequeño para explicar las ideas paso a paso.
+- **Variante MAF-native:** usa primitivas nativas de Microsoft Agent Framework como `AgentSession`, `ContextProvider`, `FileHistoryProvider`, `MemoryContextProvider`, `TodoProvider`, `ToolApprovalMiddleware` y middleware de agente/functions.
+
 La solución está pensada para demostraciones técnicas, aprendizaje incremental y revisiones rápidas desde GitHub sin depender de una plataforma compleja.
 
 ## Versión de la solución
 
-**Versión actual:** `v0.1.0`
+**Versión actual:** `v0.2.0`
 
-Esta versión cubre el recorrido completo del harness: configuración segura, contexto, skills, subagentes deterministas, memoria local, lifecycle hooks, API JSON, streaming AG-UI e interfaz web local.
+Esta versión cubre el recorrido completo del harness y añade una variante MAF-native real: configuración segura, contexto, skills, subagentes/workflows, memoria local, lifecycle hooks, API JSON, streaming AG-UI, interfaz web local y ejemplos con `AgentSession`, `ContextProvider`, `FileHistoryProvider`, `MemoryContextProvider`, `TodoProvider` y middleware de Microsoft Agent Framework.
 
 ## Tabla de contenidos
 
@@ -40,6 +45,7 @@ Esta versión cubre el recorrido completo del harness: configuración segura, co
 - **Memoria local**: mantiene estado JSON, facts por sesión, trazas de tools y artefactos Markdown.
 - **Lifecycle Hooks**: registra eventos `before_request`, `after_request`, `before_tool` y `after_tool` en JSONL.
 - **FastAPI + AG-UI**: publica endpoint streaming `/agent`, endpoint JSON `/api/chat` e interfaz local `/ui/`.
+- **Variante MAF-native**: publica `/api/chat/maf-native` y `/agent/maf-native` con historial, memoria, todos y middleware nativos de Agent Framework.
 - **Recorrido guiado**: incluye notebooks incrementales para explicar cada componente paso a paso.
 
 ## Arquitectura
@@ -73,6 +79,7 @@ src/microharness/
   tools.py        # skills del agente
   memory.py       # persistencia local
   harness.py      # construcción del Agent Framework Agent
+  maf_native.py   # variante con primitivas nativas de Agent Framework
   server.py       # FastAPI + AG-UI + endpoint JSON
   client.py       # cliente terminal AG-UI interactivo
 docs/
@@ -150,6 +157,8 @@ Endpoints locales:
 | Interfaz web | `http://127.0.0.1:8000/ui/` |
 | Stream AG-UI | `http://127.0.0.1:8000/agent` |
 | API JSON | `http://127.0.0.1:8000/api/chat` |
+| Stream AG-UI MAF-native | `http://127.0.0.1:8000/agent/maf-native` |
+| API JSON MAF-native | `http://127.0.0.1:8000/api/chat/maf-native` |
 | Health | `http://127.0.0.1:8000/health` |
 | Health extendido | `http://127.0.0.1:8000/healthz` |
 
@@ -157,6 +166,12 @@ Prueba rápida del endpoint JSON:
 
 ```bash
 python scripts/run_request.py
+```
+
+Prueba rápida del endpoint JSON con primitivas nativas de Agent Framework:
+
+```bash
+python scripts/run_native_request.py
 ```
 
 Prueba rápida del stream AG-UI:
